@@ -1,0 +1,14 @@
+.git
+.gitignore
+.claude
+.vscode
+.ruff_cache
+**/__pycache__
+**/*.pyc
+.venv
+venv
+*.db
+apps/frontend
+Dockerfile
+docker-compose.yml
+.dockerignore
