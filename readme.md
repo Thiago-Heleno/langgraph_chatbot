@@ -54,6 +54,5 @@ ruff format
 
 ```
 OPENAI_API_KEY=
-GOOGLE_API_KEY=
 TMDB_API_KEY=
 ```
