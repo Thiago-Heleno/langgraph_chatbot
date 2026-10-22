@@ -105,14 +105,14 @@ async def build_graph():
         return {"messages": [response]}
 
     async def input_check(state: AgentState) -> AgentState:
-        verdict = (await model.ainvoke([
+        verdict = (await llm.ainvoke([
             SystemMessage(content=INPUT_CHECK_PROMPT),
             state["messages"][-1],
         ])).text.strip().upper()
-        if verdict == "PROCEED":
+        # Anything other than PROCEED (e.g. "REJECT", empty, extra words) is blocked.
+        if "PROCEED" in verdict and "REJECT" not in verdict:
             return {"input_ok": True}
-        elif verdict == "REJECT":
-            return {"input_ok": False, "messages": [AIMessage(content=REJECTION_MESSAGE)]}
+        return {"input_ok": False, "messages": [AIMessage(content=REJECTION_MESSAGE)]}
 
     def route_input(state: AgentState) -> str:
         return "model" if state["input_ok"] else END
