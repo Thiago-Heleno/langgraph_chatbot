@@ -5,6 +5,7 @@ import aiosqlite
 from dotenv import load_dotenv
 
 from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.tools import tool
 from langchain_mcp_adapters.client import MultiServerMCPClient
@@ -91,7 +92,12 @@ async def build_graph():
     cp = checkpointer if checkpointer is not None else await init_checkpointer()
     mcp_tools = await mcp_client.get_tools()
     tools = [get_weather, *mcp_tools]
-    model = ChatOpenAI(model="gpt-5.4-nano", api_key=os.environ["OPENAI_API_KEY"]).bind_tools(tools)
+    # Google (free tier) is used when GOOGLE_API_KEY is set; otherwise falls back to OpenAI.
+    if os.environ.get("GOOGLE_API_KEY"):
+        llm = ChatGoogleGenerativeAI(model=os.environ.get("GOOGLE_MODEL", "gemini-2.5-flash"))
+    else:
+        llm = ChatOpenAI(model="gpt-5.4-nano", api_key=os.environ["OPENAI_API_KEY"])
+    model = llm.bind_tools(tools)
 
     async def call_model(state: AgentState) -> AgentState:
         messages = [SystemMessage(content=SYSTEM_PROMPT), *state["messages"]]
@@ -102,7 +108,7 @@ async def build_graph():
         verdict = (await model.ainvoke([
             SystemMessage(content=INPUT_CHECK_PROMPT),
             state["messages"][-1],
-        ])).content.strip().upper()
+        ])).text.strip().upper()
         if verdict == "PROCEED":
             return {"input_ok": True}
         elif verdict == "REJECT":
@@ -133,17 +139,17 @@ async def init_chat(current_thread_id: str, user_input: str):
     async for chunk in graph.astream(inputs, stream_mode="updates", config=config):
         if "model" in chunk:
             message = chunk["model"]["messages"][0]
-            content = message.content
+            content = message.text
             if content:
                 final_content = content
         elif "tools" in chunk:
-            content = chunk["tools"]["messages"][0].content
+            content = chunk["tools"]["messages"][0].text
             if content:
                 final_content = content
         elif "input_check" in chunk:
             messages = chunk["input_check"].get("messages")
             if messages:
-                final_content = messages[0].content
+                final_content = messages[0].text
 
     return final_content
 
@@ -155,12 +161,12 @@ async def get_conversation(thread_id: str) -> list[dict]:
 
     conversation = []
     for message in state.values.get("messages", []) if state.values else []:
-        if not message.content:
+        if not message.text:
             continue
         if message.type == "human":
-            conversation.append({"sender": "human", "text": message.content})
+            conversation.append({"sender": "human", "text": message.text})
         elif message.type == "ai":
-            conversation.append({"sender": "ai", "text": message.content})
+            conversation.append({"sender": "ai", "text": message.text})
 
     return conversation
 
@@ -182,14 +188,14 @@ async def main() -> None:
             async for chunk in graph.astream(inputs, stream_mode="updates", config=config):
                 if "model" in chunk:
                     message = chunk["model"]["messages"][0]
-                    if message.content:
-                        print(message.content)
+                    if message.text:
+                        print(message.text)
                 elif "tools" in chunk:
-                    print(chunk["tools"]["messages"][0].content)
+                    print(chunk["tools"]["messages"][0].text)
                 elif "input_check" in chunk:
                     messages = chunk["input_check"].get("messages")
                     if messages:
-                        print(messages[0].content)
+                        print(messages[0].text)
     finally:
         await close_checkpointer()
 

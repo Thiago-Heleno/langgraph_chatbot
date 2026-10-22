@@ -53,6 +53,7 @@ ruff format
 `.env` at the repo root:
 
 ```
-OPENAI_API_KEY=
+GOOGLE_API_KEY=   # used first when set (Gemini, free tier)
+OPENAI_API_KEY=   # fallback when GOOGLE_API_KEY is empty
 TMDB_API_KEY=
 ```

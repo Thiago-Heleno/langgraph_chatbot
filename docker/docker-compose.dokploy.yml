@@ -19,7 +19,8 @@ services:
       dockerfile: docker/Dockerfile
     command: uvicorn apps.fast_api:app --host 0.0.0.0 --port 8000
     environment:
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       MCP_SERVER_URL: http://fast-mcp:7000/mcp
       DATABASE_PATH: /app/data/app.db
       CHECKPOINT_DB_PATH: /app/data/app.db
