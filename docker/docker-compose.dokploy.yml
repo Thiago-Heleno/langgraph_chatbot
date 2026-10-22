@@ -1,0 +1,44 @@
+name: langgraph-chatbot
+
+# Compose usado pelo Dokploy. Variaveis vem do painel (arquivo .env gerado).
+services:
+  fast-mcp:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: python -m apps.fast_mcp
+    environment:
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "7000"
+      TMDB_API_KEY: ${TMDB_API_KEY}
+    restart: unless-stopped
+
+  fast-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: uvicorn apps.fast_api:app --host 0.0.0.0 --port 8000
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      MCP_SERVER_URL: http://fast-mcp:7000/mcp
+      DATABASE_PATH: /app/data/app.db
+      CHECKPOINT_DB_PATH: /app/data/app.db
+      CORS_ORIGINS: ${CORS_ORIGINS}
+    volumes:
+      - db-data:/app/data
+    depends_on:
+      - fast-mcp
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../apps/frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    depends_on:
+      - fast-api
+    restart: unless-stopped
+
+volumes:
+  db-data:
